@@ -8,22 +8,22 @@ import (
 )
 
 func Example() {
-	os.Setenv("FOOBAR", "foo bar")
+	os.Setenv("FOO_BAR", "foo bar")
 
 	text := []byte(`
 
 		ls -alh /
 
 		grep  -F \
-			'hello world'  \
+			'Little '\''s Law'  \
 			foo.txt  # comment1
 
 		# comment2
 		ps aux
 
-		echo ${FOOBAR} "${FOOBAR}"
+		echo ${FOO_BAR} "\"${FOO_BAR}\""
 
-		echo $'\x41ngry\nBirds'
+		echo $'\061\x32\x33' $'Angry\nBirds'
 
 `)
 
@@ -48,9 +48,9 @@ func Example() {
 
 	// Output:
 	// ["ls" "-alh" "/"]
-	// ["grep" "-F" "hello world" "foo.txt"]
+	// ["grep" "-F" "Little 's Law" "foo.txt"]
 	// ["ps" "aux"]
-	// ["echo" "foo" "bar" "foo bar"]
-	// ["echo" "Angry\nBirds"]
+	// ["echo" "foo" "bar" "\"foo bar\""]
+	// ["echo" "123" "Angry\nBirds"]
 	// processed line count: 15
 }

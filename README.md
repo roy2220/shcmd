@@ -19,50 +19,50 @@ Example:
 package main
 
 import (
-	"fmt"
-	"os"
+        "fmt"
+        "os"
 
-	"github.com/roy2220/shcmd"
+        "github.com/roy2220/shcmd"
 )
 
 func main() {
-	os.Setenv("FOOBAR", "foo bar")
+    os.Setenv("FOO_BAR", "foo bar")
 
-	text := []byte(`
+    text := []byte(`
 
-		ls -alh /
+        ls -alh /
 
-		grep  -F \
-			'hello world'  \
-			foo.txt  # comment1
+        grep  -F \
+            'Little '\''s Law'  \
+            foo.txt  # comment1
 
-		# comment2
-		ps aux
+        # comment2
+        ps aux
 
-		echo ${FOOBAR} "${FOOBAR}"
+        echo ${FOO_BAR} "\"${FOO_BAR}\""
 
-		echo $'\x41ngry\nBirds'
+        echo $'\061\x32\x33' $'Angry\nBirds'
 
 `)
 
-	scanner := shcmd.Scanner{
-		ExpandEnvVar: true,
-	}
+    scanner := shcmd.Scanner{
+        ExpandEnvVar: true,
+    }
 
-	scanner.SetText(text)
+    scanner.SetText(text)
 
-	for {
-		command, found, err := scanner.NextCommand()
-		if err != nil {
-			panic(err)
-		}
-		if !found {
-			break
-		}
-		fmt.Printf("%q\n", command)
-	}
+    for {
+        command, found, err := scanner.NextCommand()
+        if err != nil {
+            panic(err)
+        }
+        if !found {
+            break
+        }
+        fmt.Printf("%q\n", command)
+    }
 
-	fmt.Printf("processed line count: %v\n", scanner.LineCount())
+    fmt.Printf("processed line count: %v\n", scanner.LineCount())
 }
 ```
 
@@ -70,25 +70,26 @@ Output:
 
 ```
 ["ls" "-alh" "/"]
-["grep" "-F" "hello world" "foo.txt"]
+["grep" "-F" "Little 's Law" "foo.txt"]
 ["ps" "aux"]
-["echo" "foo" "bar" "foo bar"]
-["echo" "Angry\nBirds"]
+["echo" "foo" "bar" "\"foo bar\""]
+["echo" "123" "Angry\nBirds"]
 processed line count: 15
 ```
 
 ## Limitations
 
-It is a shell-word lexer, not a shell parser. Everything outside the rules above is either kept literal or rejected:
+It is a shell-word lexer, not a shell parser: it supports only a basic subset of POSIX rules. The following rules are not supported:
 
 ```sh
-ls | grep foo; ps aux && true   # one command: ["ls" "|" "grep" "foo;" "ps" "aux" "&&" "true"]
-cmd >out 2>&1 <in               # redirection is not special: ["cmd" ">out" "2>&1" "<in"]
-echo $(date) `date`             # no command substitution: ["echo" "$(date)" "`date`"]
-echo $1 $? $$ $@                # no positional or special parameters: ["echo" "$1" "$?" "$$" "$@"]
-echo $'\cA\u00e9'               # \cX and \u are not decoded: ["echo" "\\cA\\u00e9"]
-echo ${VAR:-default}            # bad substitution: only $NAME and ${NAME} are expanded
-ls ~/*.txt                      # no tilde expansion or globbing: ["ls" "~/*.txt"]
+ls|grep foo; ps aux && true   # one command: ["ls|grep" "foo;" "ps" "aux" "&&" "true"]
+cmd >out 2>&1 <in             # redirection is not special: ["cmd" ">out" "2>&1" "<in"]
+cat <<EOF                     # no here-documents: ["cat" "<<EOF"]
+echo $(date) `date`           # no command substitution: ["echo" "$(date)" "`date`"]
+echo $1 $? $$ $@              # no positional or special parameters: ["echo" "$1" "$?" "$$" "$@"]
+echo $'\cA\u00e9'             # \cX and \u are not decoded: ["echo" "\\cA\\u00e9"]
+echo ${VAR:-default}          # bad substitution: only $NAME and ${NAME} are expanded
+ls ~/*.txt                    # no tilde expansion or globbing: ["ls" "~/*.txt"]
 ```
 
 ## License
