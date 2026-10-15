@@ -24,24 +24,24 @@ type Scanner struct {
 
 	cursor              cursor
 	additionalLineCount int
-	words               []word
+	words               []token
 	buffer              []byte
-	textFromEnvVar      string
-	hasTextFromEnvVar   bool
+	envText             string
+	hasEnvText          bool
 }
 
-type word struct {
-	Kind       wordKind
+type token struct {
+	Kind       tokenKind
 	DataOffset int
 	DataLength int
 }
 
-type wordKind int
+type tokenKind int
 
 const (
-	wordOrdinary wordKind = 1 + iota
-	wordEndOfCommand
-	wordEndOfText
+	tokenWord tokenKind = 1 + iota
+	tokenEndOfCommand
+	tokenEndOfText
 )
 
 // SetText sets the text for the Scanner to parse. It resets the
@@ -91,72 +91,79 @@ func (s *Scanner) NextCommand() ([]string, bool, error) {
 
 	s.words = s.words[:0]
 	s.buffer = s.buffer[:0]
-	s.textFromEnvVar = ""
-	s.hasTextFromEnvVar = false
+	s.envText = ""
+	s.hasEnvText = false
 
 	for commandHasStarted := false; ; {
-		word, err := s.nextWord(commandHasStarted)
+		token, err := s.nextToken(commandHasStarted)
 		if err != nil {
 			// restore the cursor
 			s.cursor = c0
 			return nil, false, err
 		}
-		if word.Kind == wordEndOfText {
-			return nil, false, nil
-		}
-		if word.Kind == wordEndOfCommand {
+		switch token.Kind {
+		case tokenWord:
+			s.words = append(s.words, token)
+			commandHasStarted = true
+			continue
+
+		case tokenEndOfCommand:
 			// copy the whole buffer at once
 			data := string(s.buffer)
 			command := make([]string, len(s.words))
-			for i, w := range s.words {
-				command[i] = data[w.DataOffset : w.DataOffset+w.DataLength]
+			for i, v := range s.words {
+				command[i] = data[v.DataOffset : v.DataOffset+v.DataLength]
 			}
 			return command, true, nil
+
+		default: // tokenEndOfText:
+			return nil, false, nil
 		}
-		s.words = append(s.words, word)
-		commandHasStarted = true
 	}
 }
 
-func (s *Scanner) nextWord(commandHasStarted bool) (word, error) {
+func (s *Scanner) nextToken(commandHasStarted bool) (token, error) {
 	wordHasStarted := false
 	dataOffset := len(s.buffer)
 Loop:
 	for {
-		isAtEndOfTextFromEnvVar := false
-		if token, ok := s.readTextFromEnvVar(); ok {
-			if token != "" {
-				if token == splitter {
-					if wordHasStarted {
-						return word{
-							Kind:       wordOrdinary,
-							DataOffset: dataOffset,
-							DataLength: len(s.buffer) - dataOffset,
-						}, nil
-					}
-				} else {
-					s.buffer = append(s.buffer, token...)
-					wordHasStarted = true
+		isAtEndOfEnvText := false
+		if envToken := s.nextEnvToken(); envToken.Kind != 0 {
+			switch envToken.Kind {
+			case envTokenLetters:
+				s.buffer = append(s.buffer, envToken.Data...)
+				wordHasStarted = true
+				continue Loop
+
+			case envTokenEndOfWord:
+				if wordHasStarted {
+					return token{
+						Kind:       tokenWord,
+						DataOffset: dataOffset,
+						DataLength: len(s.buffer) - dataOffset,
+					}, nil
 				}
 				continue Loop
+
+			default: // envTokenEndOfText:
+				isAtEndOfEnvText = true
 			}
-			isAtEndOfTextFromEnvVar = true
 		}
 
 		pc := s.cursor
 		b, ok := s.cursor.NextByte()
 		if !ok {
 			if wordHasStarted {
-				return word{
-					Kind:       wordOrdinary,
+				return token{
+					Kind:       tokenWord,
 					DataOffset: dataOffset,
 					DataLength: len(s.buffer) - dataOffset,
 				}, nil
 			}
 			if commandHasStarted {
-				return word{Kind: wordEndOfCommand}, nil
+				return token{Kind: tokenEndOfCommand}, nil
 			}
-			return word{Kind: wordEndOfText}, nil
+			return token{Kind: tokenEndOfText}, nil
 		}
 
 		switch b {
@@ -164,18 +171,18 @@ Loop:
 			if wordHasStarted {
 				// move back the cursor
 				s.cursor = pc
-				return word{
-					Kind:       wordOrdinary,
+				return token{
+					Kind:       tokenWord,
 					DataOffset: dataOffset,
 					DataLength: len(s.buffer) - dataOffset,
 				}, nil
 			}
 			if b == '\n' && commandHasStarted {
-				return word{Kind: wordEndOfCommand}, nil
+				return token{Kind: tokenEndOfCommand}, nil
 			}
 
 		case '#':
-			if !wordHasStarted && !isAtEndOfTextFromEnvVar {
+			if !wordHasStarted && !isAtEndOfEnvText {
 				s.cursor.SkipUntilNewline()
 			} else {
 				s.buffer = append(s.buffer, '#')
@@ -185,7 +192,7 @@ Loop:
 		case '\\':
 			b, ok = s.cursor.NextByte()
 			if !ok {
-				return word{}, fmt.Errorf("%w at line %v", ErrUnterminatedBackslashEscape, s.cursor.LineCount+1)
+				return token{}, fmt.Errorf("%w at line %v", ErrUnterminatedBackslashEscape, s.cursor.LineCount+1)
 			}
 			if b == '\n' {
 				// line continuation
@@ -196,13 +203,13 @@ Loop:
 
 		case '\'':
 			if err := s.handleSingleQuotedString(); err != nil {
-				return word{}, err
+				return token{}, err
 			}
 			wordHasStarted = true
 
 		case '"':
 			if err := s.handleDoubleQuotedString(); err != nil {
-				return word{}, err
+				return token{}, err
 			}
 			wordHasStarted = true
 
@@ -210,7 +217,7 @@ Loop:
 			if nb, _ := s.cursor.PeekByte(); nb == '\'' {
 				s.cursor.NextByte()
 				if err := s.handleDollarSingleQuotedString(); err != nil {
-					return word{}, err
+					return token{}, err
 				}
 				wordHasStarted = true
 				continue Loop
@@ -218,11 +225,11 @@ Loop:
 			if s.ExpandEnvVar {
 				name, ok, err := s.nextName()
 				if err != nil {
-					return word{}, err
+					return token{}, err
 				}
 				if ok {
-					s.textFromEnvVar = s.getEnvVar(name)
-					s.hasTextFromEnvVar = true
+					s.envText = s.getEnvVar(name)
+					s.hasEnvText = true
 					continue Loop
 				}
 			}
@@ -234,6 +241,56 @@ Loop:
 			wordHasStarted = true
 		}
 	}
+}
+
+type envToken struct {
+	Kind envTokenKind
+	Data string
+}
+
+type envTokenKind int
+
+const (
+	envTokenLetters envTokenKind = 1 + iota
+	envTokenEndOfWord
+	envTokenEndOfText
+)
+
+func (s *Scanner) nextEnvToken() envToken {
+	if !s.hasEnvText {
+		return envToken{}
+	}
+	if s.envText == "" {
+		s.hasEnvText = false
+		return envToken{Kind: envTokenEndOfText}
+	}
+	var envToken envToken
+	i := 1
+	switch s.envText[0] {
+	case ' ', '\t', '\n':
+		envToken.Kind = envTokenEndOfWord
+	Loop1:
+		for ; i < len(s.envText); i++ {
+			switch s.envText[i] {
+			case ' ', '\t', '\n':
+			default:
+				break Loop1
+			}
+		}
+	default:
+		envToken.Kind = envTokenLetters
+	Loop2:
+		for ; i < len(s.envText); i++ {
+			switch s.envText[i] {
+			case ' ', '\t', '\n':
+				break Loop2
+			default:
+			}
+		}
+	}
+	envToken.Data = s.envText[:i]
+	s.envText = s.envText[i:]
+	return envToken
 }
 
 func (s *Scanner) handleSingleQuotedString() error {
@@ -389,45 +446,6 @@ func (s *Scanner) handleDollarSingleQuotedString() error {
 		default:
 			s.buffer = append(s.buffer, b)
 		}
-	}
-}
-
-const splitter = " "
-
-func (s *Scanner) readTextFromEnvVar() (string, bool) {
-	if !s.hasTextFromEnvVar {
-		return "", false
-	}
-	if s.textFromEnvVar == "" {
-		s.hasTextFromEnvVar = false
-		return "", true
-	}
-	switch s.textFromEnvVar[0] {
-	case ' ', '\t', '\n':
-		i := 1
-	Loop1:
-		for ; i < len(s.textFromEnvVar); i++ {
-			switch s.textFromEnvVar[i] {
-			case ' ', '\t', '\n':
-			default:
-				break Loop1
-			}
-		}
-		s.textFromEnvVar = s.textFromEnvVar[i:]
-		return splitter, true
-	default:
-		i := 1
-	Loop2:
-		for ; i < len(s.textFromEnvVar); i++ {
-			switch s.textFromEnvVar[i] {
-			case ' ', '\t', '\n':
-				break Loop2
-			default:
-			}
-		}
-		token := s.textFromEnvVar[:i]
-		s.textFromEnvVar = s.textFromEnvVar[i:]
-		return token, true
 	}
 }
 

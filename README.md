@@ -3,7 +3,7 @@
 [![Go Reference](https://pkg.go.dev/badge/github.com/roy2220/shcmd.svg)](https://pkg.go.dev/github.com/roy2220/shcmd)
 [![Coverage](./.badges/coverage.svg)](#)
 
-Package shcmd parses shell-style command text into commands, one
+Package `shcmd` parses shell-style command text into commands, one
 argument slice per command. It handles quoting, backslash escapes,
 line continuations, comments, and optional environment variable expansion,
 following basic POSIX shell rules for lexing.
