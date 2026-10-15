@@ -8,6 +8,9 @@ argument slice per command. It handles quoting, backslash escapes,
 line continuations, comments, and optional environment variable expansion,
 following basic POSIX shell rules for lexing.
 
+> [!NOTE]
+> Except for the documentation, every line of code is human-crafted. **No AI slop included**.
+
 ## Usage
 
 Example:
@@ -72,3 +75,7 @@ Output:
 ["#non-comment"]
 processed line count: 13
 ```
+
+## License
+
+MIT
