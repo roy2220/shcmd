@@ -243,6 +243,139 @@ ls -alh /`,
 			Text:    "echo prefix${SPACED}suffix",
 			Command: []string{"echo", "prefix", "leading", "and", "trailing", "suffix"},
 		},
+		{
+			Lineno:  lineno(),
+			Text:    `echo $'a\tb'`,
+			Command: []string{"echo", "a\tb"},
+		},
+		{
+			Lineno:  lineno(),
+			Text:    `echo $'\a\b\e\f\n\r\t\v'`,
+			Command: []string{"echo", "\a\b\x1b\f\n\r\t\v"},
+		},
+		{
+			Lineno:  lineno(),
+			Text:    `echo $'\'\"\\'`,
+			Command: []string{"echo", `'"\`},
+		},
+		{
+			Lineno:  lineno(),
+			Text:    `echo $'\x41'`,
+			Command: []string{"echo", "A"},
+		},
+		{
+			Lineno:  lineno(),
+			Text:    `echo $'\x4'`,
+			Command: []string{"echo", "\x04"},
+		},
+		{
+			Lineno:  lineno(),
+			Text:    `echo $'\x414'`,
+			Command: []string{"echo", "A4"},
+		},
+		{
+			Lineno:  lineno(),
+			Text:    `echo $'\xff'`,
+			Command: []string{"echo", "\xff"},
+		},
+		{
+			Lineno:  lineno(),
+			Text:    `echo $'\101\102\7'`,
+			Command: []string{"echo", "AB\a"},
+		},
+		{
+			Lineno:  lineno(),
+			Text:    `echo $'\8\19'`,
+			Command: []string{"echo", "\\8\x019"},
+		},
+		{
+			// Unknown escapes keep the backslash. Only the escapes defined by
+			// POSIX.1-2024 are decoded, so bash's \u and \c are not.
+			Lineno:  lineno(),
+			Text:    `echo $'\q\u00e9\cA'`,
+			Command: []string{"echo", "\\q\\u00e9\\cA"},
+		},
+		{
+			Lineno:  lineno(),
+			Text:    `echo $''`,
+			Command: []string{"echo", ""},
+		},
+		{
+			Lineno:  lineno(),
+			Text:    `echo a$''b`,
+			Command: []string{"echo", "ab"},
+		},
+		{
+			Lineno:  lineno(),
+			Text:    `echo x$'a\tb'y`,
+			Command: []string{"echo", "xa\tby"},
+		},
+		{
+			Lineno:  lineno(),
+			Text:    `echo $'a'$'b'`,
+			Command: []string{"echo", "ab"},
+		},
+		{
+			Lineno:  lineno(),
+			Text:    `echo $'a b' tail`,
+			Command: []string{"echo", "a b", "tail"},
+		},
+		{
+			// Expansion stays off inside dollar-single-quotes, even though this
+			// scanner has ExpandEnvVar set.
+			Lineno:  lineno(),
+			Text:    `echo $'$FOO ${FOO}'`,
+			Command: []string{"echo", "$FOO ${FOO}"},
+		},
+		{
+			Lineno:  lineno(),
+			Text:    `echo "$'a\tb'"`,
+			Command: []string{"echo", `$'a\tb'`},
+		},
+		{
+			// A backslash keeps the newline instead of continuing the line.
+			Lineno: lineno(),
+			Text: `echo $'a\
+b'`,
+			Command: []string{"echo", "a\\\nb"},
+		},
+		{
+			// An unescaped newline is data, not a word or command separator.
+			Lineno: lineno(),
+			Text: `echo $'a
+b'`,
+			Command: []string{"echo", "a\nb"},
+		},
+		{
+			// POSIX leaves a NUL result unspecified; this implementation keeps
+			// the byte where bash truncates the rest of the sequence.
+			Lineno:  lineno(),
+			Text:    `echo a$'\0'b`,
+			Command: []string{"echo", "a\x00b"},
+		},
+		{
+			// CRLF is normalised to LF like everywhere else in the scanner,
+			// so the carriage return is dropped.
+			Lineno:  lineno(),
+			Text:    "echo $'a\r\nb'",
+			Command: []string{"echo", "a\nb"},
+		},
+		{
+			Lineno:  lineno(),
+			Text:    `echo $'\x4A'`,
+			Command: []string{"echo", "J"},
+		},
+		{
+			Lineno:  lineno(),
+			Text:    `echo $'\x'`,
+			Command: []string{"echo", `\x`},
+		},
+		{
+			// A bare $ in front of a CRLF line ending stays literal.
+			Lineno:  lineno(),
+			Text:    "echo $\r\n",
+			Command: []string{"echo", "$"},
+		},
 	}
 
 	scanner := Scanner{
@@ -418,6 +551,34 @@ lines`,
 			Lineno: lineno(),
 			Text:   "echo \"$1",
 			Error:  "unterminated double-quoted string",
+		},
+		{
+			Lineno: lineno(),
+			Text:   `echo $'a`,
+			Error:  "unterminated dollar-single-quoted string",
+		},
+		{
+			Lineno: lineno(),
+			Text:   `echo $'`,
+			Error:  "unterminated dollar-single-quoted string",
+		},
+		{
+			Lineno: lineno(),
+			Text: `echo $'spans
+lines`,
+			Error: "unterminated dollar-single-quoted string",
+		},
+		{
+			// bash reports the unterminated quote here; this implementation
+			// reports the dangling backslash.
+			Lineno: lineno(),
+			Text:   "echo $'a\\",
+			Error:  "unterminated backslash-escape",
+		},
+		{
+			Lineno: lineno(),
+			Text:   `echo $'\x`,
+			Error:  "unterminated dollar-single-quoted string",
 		},
 	}
 

@@ -27,21 +27,22 @@ import (
 
 func main() {
 	os.Setenv("FOOBAR", "foo bar")
-	os.Setenv("EMPTY", "")
 
-	text := []byte(`# comment1
+	text := []byte(`
+
 		ls -alh /
 
 		grep  -F \
 			'hello world'  \
-			foo.txt  # comment2
+			foo.txt  # comment1
 
-		# comment3
+		# comment2
 		ps aux
 
 		echo ${FOOBAR} "${FOOBAR}"
 
-		${EMPTY}#non-comment
+		echo $'\x41ngry\nBirds'
+
 `)
 
 	scanner := shcmd.Scanner{
@@ -72,8 +73,22 @@ Output:
 ["grep" "-F" "hello world" "foo.txt"]
 ["ps" "aux"]
 ["echo" "foo" "bar" "foo bar"]
-["#non-comment"]
-processed line count: 13
+["echo" "Angry\nBirds"]
+processed line count: 15
+```
+
+## Limitations
+
+It is a shell-word lexer, not a shell parser. Everything outside the rules above is either kept literal or rejected:
+
+```sh
+ls | grep foo; ps aux && true   # one command: ["ls" "|" "grep" "foo;" "ps" "aux" "&&" "true"]
+cmd >out 2>&1 <in               # redirection is not special: ["cmd" ">out" "2>&1" "<in"]
+echo $(date) `date`             # no command substitution: ["echo" "$(date)" "`date`"]
+echo $1 $? $$ $@                # no positional or special parameters: ["echo" "$1" "$?" "$$" "$@"]
+echo $'\cA\u00e9'               # \cX and \u are not decoded: ["echo" "\\cA\\u00e9"]
+echo ${VAR:-default}            # bad substitution: only $NAME and ${NAME} are expanded
+ls ~/*.txt                      # no tilde expansion or globbing: ["ls" "~/*.txt"]
 ```
 
 ## License

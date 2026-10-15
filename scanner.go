@@ -71,6 +71,9 @@ var (
 	// ErrUnterminatedDoubleQuotedString is returned by NextCommand when a
 	// double-quoted string is not terminated.
 	ErrUnterminatedDoubleQuotedString = errors.New("shcmd: unterminated double-quoted string")
+	// ErrUnterminatedDollarSingleQuotedString is returned by NextCommand when a
+	// dollar-single-quoted string is not terminated.
+	ErrUnterminatedDollarSingleQuotedString = errors.New("shcmd: unterminated dollar-single-quoted string")
 	// ErrBadSubstitution is returned by NextCommand when a bad
 	// substitution is detected.
 	ErrBadSubstitution = errors.New("shcmd: bad substitution")
@@ -174,11 +177,10 @@ Loop:
 		case '#':
 			if !wordHasStarted && !isAtEndOfTextFromEnvVar {
 				s.cursor.SkipUntilNewline()
-				continue Loop
+			} else {
+				s.buffer = append(s.buffer, '#')
+				wordHasStarted = true
 			}
-
-			s.buffer = append(s.buffer, '#')
-			wordHasStarted = true
 
 		case '\\':
 			b, ok = s.cursor.NextByte()
@@ -193,67 +195,26 @@ Loop:
 			}
 
 		case '\'':
-			pc = s.cursor
-			for {
-				b, ok = s.cursor.NextByte()
-				if !ok {
-					return word{}, fmt.Errorf("%w at line %v", ErrUnterminatedSingleQuotedString, pc.LineCount+1)
-				}
-				if b == '\'' {
-					wordHasStarted = true
-					continue Loop
-				}
-				s.buffer = append(s.buffer, b)
+			if err := s.handleSingleQuotedString(); err != nil {
+				return word{}, err
 			}
+			wordHasStarted = true
 
 		case '"':
-			pc = s.cursor
-			for {
-				b, ok = s.cursor.NextByte()
-				if !ok {
-					return word{}, fmt.Errorf("%w at line %v", ErrUnterminatedDoubleQuotedString, pc.LineCount+1)
-				}
-				switch b {
-				case '"':
-					wordHasStarted = true
-					continue Loop
-
-				case '\\':
-					b, ok = s.cursor.NextByte()
-					if !ok {
-						return word{}, fmt.Errorf("%w at line %v", ErrUnterminatedBackslashEscape, s.cursor.LineCount+1)
-					}
-					switch b {
-					case '\n':
-						// line continuation
-
-					case '$', '`', '"', '\\':
-						s.buffer = append(s.buffer, b)
-
-					default:
-						s.buffer = append(s.buffer, '\\')
-						s.buffer = append(s.buffer, b)
-					}
-
-				case '$':
-					if s.ExpandEnvVar {
-						name, ok, err := s.nextName()
-						if err != nil {
-							return word{}, err
-						}
-						if ok {
-							s.buffer = append(s.buffer, s.getEnvVar(name)...)
-							continue
-						}
-					}
-					s.buffer = append(s.buffer, b)
-
-				default:
-					s.buffer = append(s.buffer, b)
-				}
+			if err := s.handleDoubleQuotedString(); err != nil {
+				return word{}, err
 			}
+			wordHasStarted = true
 
 		case '$':
+			if nb, _ := s.cursor.PeekByte(); nb == '\'' {
+				s.cursor.NextByte()
+				if err := s.handleDollarSingleQuotedString(); err != nil {
+					return word{}, err
+				}
+				wordHasStarted = true
+				continue Loop
+			}
 			if s.ExpandEnvVar {
 				name, ok, err := s.nextName()
 				if err != nil {
@@ -271,6 +232,162 @@ Loop:
 		default:
 			s.buffer = append(s.buffer, b)
 			wordHasStarted = true
+		}
+	}
+}
+
+func (s *Scanner) handleSingleQuotedString() error {
+	c0 := s.cursor
+	for {
+		b, ok := s.cursor.NextByte()
+		if !ok {
+			return fmt.Errorf("%w at line %v", ErrUnterminatedSingleQuotedString, c0.LineCount+1)
+		}
+		if b == '\'' {
+			return nil
+		}
+		s.buffer = append(s.buffer, b)
+	}
+}
+
+func (s *Scanner) handleDoubleQuotedString() error {
+	c0 := s.cursor
+	for {
+		b, ok := s.cursor.NextByte()
+		if !ok {
+			return fmt.Errorf("%w at line %v", ErrUnterminatedDoubleQuotedString, c0.LineCount+1)
+		}
+		switch b {
+		case '"':
+			return nil
+
+		case '\\':
+			b, ok = s.cursor.NextByte()
+			if !ok {
+				return fmt.Errorf("%w at line %v", ErrUnterminatedBackslashEscape, s.cursor.LineCount+1)
+			}
+			switch b {
+			case '\n':
+				// line continuation
+
+			case '$', '`', '"', '\\':
+				s.buffer = append(s.buffer, b)
+
+			default:
+				s.buffer = append(s.buffer, '\\')
+				s.buffer = append(s.buffer, b)
+			}
+
+		case '$':
+			if s.ExpandEnvVar {
+				name, ok, err := s.nextName()
+				if err != nil {
+					return err
+				}
+				if ok {
+					s.buffer = append(s.buffer, s.getEnvVar(name)...)
+					continue
+				}
+			}
+			s.buffer = append(s.buffer, b)
+
+		default:
+			s.buffer = append(s.buffer, b)
+		}
+	}
+}
+
+func (s *Scanner) handleDollarSingleQuotedString() error {
+	c0 := s.cursor
+	for {
+		b, ok := s.cursor.NextByte()
+		if !ok {
+			return fmt.Errorf("%w at line %v", ErrUnterminatedDollarSingleQuotedString, c0.LineCount+1)
+		}
+		switch b {
+		case '\'':
+			return nil
+
+		case '\\':
+			b, ok = s.cursor.NextByte()
+			if !ok {
+				return fmt.Errorf("%w at line %v", ErrUnterminatedBackslashEscape, s.cursor.LineCount+1)
+			}
+			switch b {
+			case '"', '\'', '\\':
+				s.buffer = append(s.buffer, b)
+
+			case 'a':
+				s.buffer = append(s.buffer, '\a')
+
+			case 'b':
+				s.buffer = append(s.buffer, '\b')
+
+			case 'e':
+				s.buffer = append(s.buffer, '\x1b')
+
+			case 'f':
+				s.buffer = append(s.buffer, '\f')
+
+			case 'n':
+				s.buffer = append(s.buffer, '\n')
+
+			case 'r':
+				s.buffer = append(s.buffer, '\r')
+
+			case 't':
+				s.buffer = append(s.buffer, '\t')
+
+			case 'v':
+				s.buffer = append(s.buffer, '\v')
+
+			case 'x':
+				n := -1
+				for range 2 {
+					nn := -1
+					if nb, ok := s.cursor.PeekByte(); ok {
+						switch {
+						case nb >= '0' && nb <= '9':
+							nn = int(nb) - '0'
+						case nb >= 'A' && nb <= 'F':
+							nn = 10 + int(nb) - 'A'
+						case nb >= 'a' && nb <= 'f':
+							nn = 10 + int(nb) - 'a'
+						}
+					}
+					if nn < 0 {
+						break
+					}
+					s.cursor.NextByte()
+					n = max(n, 0)*16 + nn
+				}
+				if n >= 0 {
+					s.buffer = append(s.buffer, byte(n))
+				} else {
+					s.buffer = append(s.buffer, '\\')
+					s.buffer = append(s.buffer, 'x')
+				}
+
+			default:
+				if b >= '0' && b <= '7' {
+					n := int(b) - '0'
+					for range 2 {
+						nb, _ := s.cursor.PeekByte()
+						if !(nb >= '0' && nb <= '7') {
+							break
+						}
+						s.cursor.NextByte()
+						n = n*8 + (int(nb) - '0')
+					}
+					s.buffer = append(s.buffer, byte(n))
+				} else {
+					s.buffer = append(s.buffer, '\\')
+					s.buffer = append(s.buffer, b)
+				}
+			}
+
+		default:
+			s.buffer = append(s.buffer, b)
 		}
 	}
 }
@@ -343,7 +460,7 @@ func (s *Scanner) nextName() ([]byte, bool, error) {
 			return nil, false, nil
 		}
 	}
-	for l := 1; ; {
+	for l := 1; ; l++ {
 		pc := s.cursor
 		b, ok := s.cursor.NextByte()
 		if !ok {
@@ -371,7 +488,6 @@ func (s *Scanner) nextName() ([]byte, bool, error) {
 				return nameStart[:l], true, nil
 			}
 		}
-		l++
 	}
 }
 
@@ -400,6 +516,7 @@ type cursor struct {
 
 func (c *cursor) NextByte() (byte, bool) {
 	if c.IsAtEnd() {
+		c.Text = nil
 		return 0, false
 	}
 	b := c.Text[0]
@@ -414,6 +531,17 @@ func (c *cursor) NextByte() (byte, bool) {
 		c.LineCount++
 	}
 	c.Text = c.Text[1:]
+	return b, true
+}
+
+func (c *cursor) PeekByte() (byte, bool) {
+	if c.IsAtEnd() {
+		return 0, false
+	}
+	b := c.Text[0]
+	if b == '\r' && len(c.Text) >= 2 && c.Text[1] == '\n' {
+		return '\n', true
+	}
 	return b, true
 }
 

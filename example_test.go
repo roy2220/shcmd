@@ -9,21 +9,22 @@ import (
 
 func Example() {
 	os.Setenv("FOOBAR", "foo bar")
-	os.Setenv("EMPTY", "")
 
-	text := []byte(`# comment1
+	text := []byte(`
+
 		ls -alh /
 
 		grep  -F \
 			'hello world'  \
-			foo.txt  # comment2
+			foo.txt  # comment1
 
-		# comment3
+		# comment2
 		ps aux
 
 		echo ${FOOBAR} "${FOOBAR}"
 
-		${EMPTY}#non-comment
+		echo $'\x41ngry\nBirds'
+
 `)
 
 	scanner := shcmd.Scanner{
@@ -50,6 +51,6 @@ func Example() {
 	// ["grep" "-F" "hello world" "foo.txt"]
 	// ["ps" "aux"]
 	// ["echo" "foo" "bar" "foo bar"]
-	// ["#non-comment"]
-	// processed line count: 13
+	// ["echo" "Angry\nBirds"]
+	// processed line count: 15
 }
