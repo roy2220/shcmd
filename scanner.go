@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"unicode/utf8"
 )
 
 // A Scanner parses shell-style command text. The zero value is ready
@@ -398,18 +399,27 @@ func (s *Scanner) handleDollarSingleQuotedString() error {
 			case 'v':
 				s.buffer = append(s.buffer, '\v')
 
-			case 'x':
-				n := -1
-				for range 2 {
-					nn := -1
+			case 'x', 'u', 'U':
+				var l int
+				switch b {
+				case 'x':
+					l = 2
+				case 'u':
+					l = 4
+				default: // 'U':
+					l = 8
+				}
+				n := int64(-1)
+				for range l {
+					nn := int64(-1)
 					if nb, ok := s.cursor.PeekByte(); ok {
 						switch {
 						case nb >= '0' && nb <= '9':
-							nn = int(nb) - '0'
+							nn = int64(nb) - '0'
 						case nb >= 'A' && nb <= 'F':
-							nn = 10 + int(nb) - 'A'
+							nn = 10 + int64(nb) - 'A'
 						case nb >= 'a' && nb <= 'f':
-							nn = 10 + int(nb) - 'a'
+							nn = 10 + int64(nb) - 'a'
 						}
 					}
 					if nn < 0 {
@@ -419,10 +429,14 @@ func (s *Scanner) handleDollarSingleQuotedString() error {
 					n = max(n, 0)*16 + nn
 				}
 				if n >= 0 {
-					s.buffer = append(s.buffer, byte(n))
+					if b == 'x' {
+						s.buffer = append(s.buffer, byte(n))
+					} else {
+						s.buffer = utf8.AppendRune(s.buffer, rune(n))
+					}
 				} else {
 					s.buffer = append(s.buffer, '\\')
-					s.buffer = append(s.buffer, 'x')
+					s.buffer = append(s.buffer, b)
 				}
 
 			default:

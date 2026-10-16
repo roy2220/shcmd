@@ -40,11 +40,11 @@ func Example_multiple_commands() {
 		# comment
 		ps aux
 
-		echo ${FOO_BAR} "\"${FOO_BAR}\""
+		echo ${FOO_BAR} "${FOO_BAR}"
 
-		echo $'\061\x32\x33' $'Angry\nBirds'
+		echo $'have fun\t\U0001F920'
 
-`)
+	`)
 
 	scanner := shcmd.Scanner{
 		Options: shcmd.Options{
@@ -71,7 +71,7 @@ func Example_multiple_commands() {
 	// ["ls" "-alh" "/"]
 	// ["sed" "-i" "s/apple/orange/g" "test.txt"]
 	// ["ps" "aux"]
-	// ["echo" "foo" "bar" "\"foo bar\""]
-	// ["echo" "123" "Angry\nBirds"]
-	// processed line count: 15
+	// ["echo" "foo" "bar" "foo bar"]
+	// ["echo" "have fun\t🤠"]
+	// processed line count: 16
 }

@@ -4,9 +4,9 @@
 [![Coverage](./.badges/coverage.svg)](#)
 
 Package `shcmd` parses shell-style command text into commands, one
-argument slice per command. It handles quoting, backslash escapes,
-line continuations, comments, and optional environment variable expansion,
-following basic POSIX shell rules for lexing.
+argument slice per command. It handles quoting, ANSI-C quoting, backslash
+escapes, line continuations, comments, and optional environment variable
+expansion, following basic POSIX shell rules for lexing.
 
 > [!NOTE]
 > Except for the documentation, every line of code is human-crafted. **No AI slop included**.
@@ -74,11 +74,11 @@ func main() {
         # comment
         ps aux
 
-        echo ${FOO_BAR} "\"${FOO_BAR}\""
+        echo ${FOO_BAR} "${FOO_BAR}"
 
-        echo $'\061\x32\x33' $'Angry\nBirds'
+        echo $'have fun\t\U0001F920'
 
-`)
+    `)
 
     scanner := shcmd.Scanner{
         Options: shcmd.Options{
@@ -105,9 +105,9 @@ func main() {
     // ["ls" "-alh" "/"]
     // ["sed" "-i" "s/apple/orange/g" "test.txt"]
     // ["ps" "aux"]
-    // ["echo" "foo" "bar" "\"foo bar\""]
-    // ["echo" "123" "Angry\nBirds"]
-    // processed line count: 15
+    // ["echo" "foo" "bar" "foo bar"]
+    // ["echo" "have fun\t🤠"]
+    // processed line count: 16
 }
 ```
 
@@ -121,7 +121,7 @@ cmd >out 2>&1 <in             # redirection is not special: ["cmd" ">out" "2>&1"
 cat <<EOF                     # no here-documents: ["cat" "<<EOF"]
 echo $(date) `date`           # no command substitution: ["echo" "$(date)" "`date`"]
 echo $1 $? $$ $@              # no positional or special parameters: ["echo" "$1" "$?" "$$" "$@"]
-echo $'\cA\u00e9'             # \cX and \u are not decoded: ["echo" "\\cA\\u00e9"]
+echo $'\cA'                   # \cX is not decoded: ["echo" "\\cA"]
 echo ${VAR:-default}          # bad substitution: only $NAME and ${NAME} are expanded
 ls ~/*.txt                    # no tilde expansion or globbing: ["ls" "~/*.txt"]
 ```

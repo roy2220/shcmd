@@ -260,40 +260,38 @@ ls -alh /`,
 		},
 		{
 			Lineno:  lineno(),
-			Text:    `echo $'\x41'`,
-			Command: []string{"echo", "A"},
+			Text:    `echo $'\1' $'\117' $'\1172'`,
+			Command: []string{"echo", "\x01", "O", "O2"},
 		},
 		{
 			Lineno:  lineno(),
-			Text:    `echo $'\x4'`,
-			Command: []string{"echo", "\x04"},
+			Text:    `echo $'\xy' $'\x4' $'\x4F' $'\x4FD'`,
+			Command: []string{"echo", "\\xy", "\x04", "O", "OD"},
 		},
 		{
 			Lineno:  lineno(),
-			Text:    `echo $'\x414'`,
-			Command: []string{"echo", "A4"},
+			Text:    `echo $'\uv' $'\u4' $'\u4F' $'\u04F' $'\u004FD'`,
+			Command: []string{"echo", "\\uv", "\x04", "O", "O", "OD"},
 		},
 		{
 			Lineno:  lineno(),
-			Text:    `echo $'\xff'`,
-			Command: []string{"echo", "\xff"},
+			Text:    `echo $'\UV' $'\U4' $'\U4F' $'\U004F' $'\U0000004FD'`,
+			Command: []string{"echo", "\\UV", "\x04", "O", "O", "OD"},
 		},
 		{
+			// \uD800 is a surrogate, and \U110000 is beyond the Unicode range.
+			// bash writes the raw UTF-8 encoding of such a code point anyway;
+			// this scanner writes a replacement character.
 			Lineno:  lineno(),
-			Text:    `echo $'\101\102\7'`,
-			Command: []string{"echo", "AB\a"},
+			Text:    `echo $'\ud800' $'\udfff' $'\U110000'`,
+			Command: []string{"echo", "\uFFFD", "\uFFFD", "\uFFFD"},
 		},
 		{
+			// Unknown escapes keep the backslash. \cX is POSIX-defined but is
+			// not decoded here.
 			Lineno:  lineno(),
-			Text:    `echo $'\8\19'`,
-			Command: []string{"echo", "\\8\x019"},
-		},
-		{
-			// Unknown escapes keep the backslash. Only the escapes defined by
-			// POSIX.1-2024 are decoded, so bash's \u and \c are not.
-			Lineno:  lineno(),
-			Text:    `echo $'\q\u00e9\cA'`,
-			Command: []string{"echo", "\\q\\u00e9\\cA"},
+			Text:    `echo $'\q\cA'`,
+			Command: []string{"echo", "\\q\\cA"},
 		},
 		{
 			Lineno:  lineno(),
