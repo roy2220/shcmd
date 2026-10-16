@@ -13,16 +13,51 @@ following basic POSIX shell rules for lexing.
 
 ## Usage
 
-Example:
+### Example: single command
 
 ```go
 package main
 
 import (
-        "fmt"
-        "os"
+    "fmt"
+    "os"
 
-        "github.com/roy2220/shcmd"
+    "github.com/roy2220/shcmd"
+)
+
+func main() {
+    os.Setenv("MY_FILE", "my notes.txt")
+
+    command, err := shcmd.Split(
+        `grep  -F  \
+            'Little '\''s Law'  \
+            "${MY_FILE}"  # comment
+        `,
+        shcmd.Options{ExpandEnvVars: true},
+    )
+    if err != nil {
+        panic(err)
+    }
+    fmt.Printf("%q\n", command)
+
+    // Output:
+    // ["grep" "-F" "Little 's Law" "my notes.txt"]
+}
+```
+
+To parse from a `[]byte` without copying the text into a string,
+use `SplitBytes`; it takes the same options and returns the same results.
+
+### Example: multiple commands
+
+```go
+package main
+
+import (
+    "fmt"
+    "os"
+
+    "github.com/roy2220/shcmd"
 )
 
 func main() {
@@ -32,11 +67,11 @@ func main() {
 
         ls -alh /
 
-        grep  -F \
-            'Little '\''s Law'  \
-            foo.txt  # comment1
+        sed -i \
+            's/apple/orange/g' \
+            test.txt
 
-        # comment2
+        # comment
         ps aux
 
         echo ${FOO_BAR} "\"${FOO_BAR}\""
@@ -46,7 +81,9 @@ func main() {
 `)
 
     scanner := shcmd.Scanner{
-        ExpandEnvVar: true,
+        Options: shcmd.Options{
+            ExpandEnvVars: true,
+        },
     }
 
     scanner.SetText(text)
@@ -63,18 +100,15 @@ func main() {
     }
 
     fmt.Printf("processed line count: %v\n", scanner.LineCount())
+
+    // Output:
+    // ["ls" "-alh" "/"]
+    // ["sed" "-i" "s/apple/orange/g" "test.txt"]
+    // ["ps" "aux"]
+    // ["echo" "foo" "bar" "\"foo bar\""]
+    // ["echo" "123" "Angry\nBirds"]
+    // processed line count: 15
 }
-```
-
-Output:
-
-```
-["ls" "-alh" "/"]
-["grep" "-F" "Little 's Law" "foo.txt"]
-["ps" "aux"]
-["echo" "foo" "bar" "\"foo bar\""]
-["echo" "123" "Angry\nBirds"]
-processed line count: 15
 ```
 
 ## Limitations

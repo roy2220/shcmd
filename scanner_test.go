@@ -322,7 +322,7 @@ ls -alh /`,
 		},
 		{
 			// Expansion stays off inside dollar-single-quotes, even though this
-			// scanner has ExpandEnvVar set.
+			// scanner has ExpandEnvVars set.
 			Lineno:  lineno(),
 			Text:    `echo $'$FOO ${FOO}'`,
 			Command: []string{"echo", "$FOO ${FOO}"},
@@ -379,7 +379,9 @@ b'`,
 	}
 
 	scanner := Scanner{
-		ExpandEnvVar: true,
+		Options: Options{
+			ExpandEnvVars: true,
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(fmt.Sprintf("line_%d", tc.Lineno), func(t *testing.T) {
@@ -583,7 +585,9 @@ lines`,
 	}
 
 	scanner := Scanner{
-		ExpandEnvVar: true,
+		Options: Options{
+			ExpandEnvVars: true,
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(fmt.Sprintf("line_%d", tc.Lineno), func(t *testing.T) {
@@ -668,14 +672,16 @@ whoami`))
 	})
 }
 
-func TestExpandEnvVar(t *testing.T) {
+func TestExpandEnvVars(t *testing.T) {
 	t.Run("disabled", func(t *testing.T) {
 		t.Setenv("SHCMD_TEST_FOO", "foo bar")
 		var names []string
 		scanner := Scanner{
-			Getenv: func(name string) string {
-				names = append(names, name)
-				return "from getenv"
+			Options: Options{
+				Getenv: func(name string) string {
+					names = append(names, name)
+					return "from getenv"
+				},
 			},
 		}
 		scanner.SetText([]byte(`echo $SHCMD_TEST_FOO ${SHCMD_TEST_FOO} "$SHCMD_TEST_FOO"`))
@@ -689,7 +695,9 @@ func TestExpandEnvVar(t *testing.T) {
 	t.Run("enabled_process_env", func(t *testing.T) {
 		t.Setenv("SHCMD_TEST_FOO", "foo bar")
 		scanner := Scanner{
-			ExpandEnvVar: true,
+			Options: Options{
+				ExpandEnvVars: true,
+			},
 		}
 		scanner.SetText([]byte(`echo $SHCMD_TEST_FOO "${SHCMD_TEST_FOO}"`))
 		command, found, err := scanner.NextCommand()
@@ -702,10 +710,12 @@ func TestExpandEnvVar(t *testing.T) {
 		t.Setenv("FOO", "from process env")
 		var names []string
 		scanner := Scanner{
-			ExpandEnvVar: true,
-			Getenv: func(name string) string {
-				names = append(names, name)
-				return map[string]string{"FOO": "foo", "FOOBAR": "foo bar"}[name]
+			Options: Options{
+				ExpandEnvVars: true,
+				Getenv: func(name string) string {
+					names = append(names, name)
+					return map[string]string{"FOO": "foo", "FOOBAR": "foo bar"}[name]
+				},
 			},
 		}
 		scanner.SetText([]byte(`echo $FOO ${FOOBAR} "$FOO"`))

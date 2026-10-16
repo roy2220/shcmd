@@ -1,7 +1,3 @@
-// Package shcmd parses shell-style command text into commands, one
-// argument slice per command. It handles quoting, backslash escapes,
-// line continuations, comments, and optional environment variable expansion,
-// following basic POSIX shell rules for lexing.
 package shcmd
 
 import (
@@ -9,18 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"unsafe"
 )
 
 // A Scanner parses shell-style command text. The zero value is ready
 // for use.
 type Scanner struct {
-	// ExpandEnvVar indicates whether environment variables in
-	// the form $NAME or ${NAME} should be expanded.
-	ExpandEnvVar bool
-	// Getenv specifies a function to retrieve the value of an
-	// environment variable. If nil, os.Getenv is used.
-	Getenv func(string) string
+	Options Options
 
 	cursor              cursor
 	additionalLineCount int
@@ -28,6 +18,16 @@ type Scanner struct {
 	buffer              []byte
 	envText             string
 	hasEnvText          bool
+}
+
+// Options configures a Scanner. The zero value is ready for use.
+type Options struct {
+	// ExpandEnvVars indicates whether environment variables in
+	// the form $NAME or ${NAME} should be expanded.
+	ExpandEnvVars bool
+	// Getenv specifies a function to retrieve the value of an
+	// environment variable. If nil, os.Getenv is used.
+	Getenv func(string) string
 }
 
 type token struct {
@@ -56,9 +56,9 @@ func (s *Scanner) SetText(text []byte) {
 	}
 }
 
-// SkipLines skips the next n lines without parsing them. The number of
-// lines actually skipped may be less than n when the end of the text is
-// reached.
+// SkipLines skips the next n lines without parsing them but counts them as
+// processed. The number of lines actually skipped may be less than n when
+// the end of the text is reached.
 func (s *Scanner) SkipLines(n int) { s.cursor.SkipLines(n) }
 
 var (
@@ -80,10 +80,10 @@ var (
 )
 
 // NextCommand parses and returns the next command as a slice of
-// arguments, with each argument fully unquoted and unescaped. The
-// second return value reports whether a command was found; it is
-// false when the text is exhausted. Blank lines and comments are
-// skipped.
+// arguments, with each argument fully unquoted and unescaped.
+// Blank lines and comments are skipped. The second return value
+// reports whether a command was found; it is false when the text is
+// exhausted.
 //
 // If a command was found, the slice contains at least one argument.
 func (s *Scanner) NextCommand() ([]string, bool, error) {
@@ -222,7 +222,7 @@ Loop:
 				wordHasStarted = true
 				continue Loop
 			}
-			if s.ExpandEnvVar {
+			if s.Options.ExpandEnvVars {
 				name, ok, err := s.nextName()
 				if err != nil {
 					return token{}, err
@@ -336,7 +336,7 @@ func (s *Scanner) handleDoubleQuotedString() error {
 			}
 
 		case '$':
-			if s.ExpandEnvVar {
+			if s.Options.ExpandEnvVars {
 				name, ok, err := s.nextName()
 				if err != nil {
 					return err
@@ -510,7 +510,7 @@ func (s *Scanner) nextName() ([]byte, bool, error) {
 }
 
 func (s *Scanner) getEnvVar(name []byte) string {
-	if f := s.Getenv; f != nil {
+	if f := s.Options.Getenv; f != nil {
 		return f(string(name))
 	}
 	return os.Getenv(b2s(name))
@@ -585,5 +585,3 @@ func (c *cursor) SkipUntilNewline() {
 }
 
 func (c *cursor) IsAtEnd() bool { return len(c.Text) == 0 }
-
-func b2s(b []byte) string { return unsafe.String(unsafe.SliceData(b), len(b)) }
