@@ -3,13 +3,13 @@
 [![Go Reference](https://pkg.go.dev/badge/github.com/roy2220/shcmd.svg)](https://pkg.go.dev/github.com/roy2220/shcmd)
 [![Coverage](./.badges/coverage.svg)](#)
 
-Package `shcmd` parses shell-style command text into commands, one
-argument slice per command. It handles quoting, ANSI-C quoting, backslash
-escapes, line continuations, comments, and optional environment variable
-expansion, following basic POSIX shell rules for lexing.
+Package `shcmd` parses shell-style text into commands, one argument slice
+per command. It handles quoting, ANSI-C quoting, backslash escapes, line
+continuations, comments, and optional environment variable expansion, following
+basic POSIX shell rules for lexing.
 
-So far `shcmd` is the fastest implementation among similar shell-word splitting
-packages; see [Performance](#performance) for benchmark results.
+So far `shcmd` is the **fastest** implementation among similar shell-word
+splitting packages; see [Performance](#performance) for benchmark results.
 
 > [!NOTE]
 > Except for the documentation, every line of code is human-crafted. **No AI slop included**.
@@ -119,23 +119,23 @@ func main() {
 Compared with the following competitors, `shcmd` consistently benchmarks
 fastest with the fewest allocations:
 
-- github.com/kballard/go-shellquote
-- github.com/mattn/go-shellwords
-- github.com/google/shlex
+- [github.com/kballard/go-shellquote](https://github.com/kballard/go-shellquote)
+- [github.com/mattn/go-shellwords](https://github.com/mattn/go-shellwords)
+- [github.com/google/shlex](https://github.com/google/shlex)
 
 Results on Go 1.27.1, linux/arm64:
 
 | Test Case | Package | time/op | allocs/op |
 | --- | --- | --- | --- |
-| Simple | **shcmd** | 1x | 1x |
+| Simple | ⭐ shcmd | 1x | 1x |
 | Simple | go-shellquote | 2.1x | 3.5x |
 | Simple | go-shellwords | 1.7x | 2x |
 | Simple | google-shlex | 20.5x | 8x |
-| Quoted | **shcmd** | 1x | 1x |
+| Quoted | ⭐ shcmd | 1x | 1x |
 | Quoted | go-shellquote | 2.1x | 5x |
 | Quoted | go-shellwords | 2.0x | 3.5x |
 | Quoted | google-shlex | 14.1x | 14x |
-| ManyArgs | **shcmd** | 1x | 1x |
+| ManyArgs | ⭐ shcmd | 1x | 1x |
 | ManyArgs | go-shellquote | 1.9x | 20.5x |
 | ManyArgs | go-shellwords | 2.0x | 17.5x |
 | ManyArgs | google-shlex | 6.1x | 55x |

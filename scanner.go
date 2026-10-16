@@ -8,7 +8,7 @@ import (
 	"unicode/utf8"
 )
 
-// A Scanner parses shell-style command text. The zero value is ready
+// A Scanner parses shell-style text. The zero value is ready
 // for use.
 type Scanner struct {
 	Options Options
@@ -23,11 +23,11 @@ type Scanner struct {
 
 // Options configures a Scanner. The zero value is ready for use.
 type Options struct {
-	// ExpandEnvVars indicates whether environment variables in
-	// the form $NAME or ${NAME} should be expanded.
+	// ExpandEnvVars indicates whether environment variables in the form
+	// $NAME or ${NAME} should be expanded.
 	ExpandEnvVars bool
-	// Getenv specifies a function to retrieve the value of an
-	// environment variable. If nil, os.Getenv is used.
+	// Getenv specifies a function to retrieve the value of an environment
+	// variable. If nil, os.Getenv is used.
 	Getenv func(string) string
 }
 
@@ -45,9 +45,9 @@ const (
 	tokenEndOfText
 )
 
-// SetText sets the text for the Scanner to parse. It resets the
-// line count. Internal buffers are kept for reuse. The text will
-// not be modified by the Scanner.
+// SetText sets the text for the Scanner to parse. It resets the line count.
+// Internal buffers are kept for reuse. The text will not be modified by the
+// Scanner.
 func (s *Scanner) SetText(text []byte) {
 	s.cursor = cursor{Text: text}
 	if n := len(text); n >= 1 && text[n-1] != '\n' {
@@ -58,8 +58,8 @@ func (s *Scanner) SetText(text []byte) {
 }
 
 // SkipLines skips the next n lines without parsing them but counts them as
-// processed. The number of lines actually skipped may be less than n when
-// the end of the text is reached.
+// processed. The number of lines actually skipped may be less than n when the
+// end of the text is reached.
 func (s *Scanner) SkipLines(n int) { s.cursor.SkipLines(n) }
 
 var (
@@ -72,19 +72,18 @@ var (
 	// ErrUnterminatedDoubleQuotedString is returned by NextCommand when a
 	// double-quoted string is not terminated.
 	ErrUnterminatedDoubleQuotedString = errors.New("shcmd: unterminated double-quoted string")
-	// ErrUnterminatedDollarSingleQuotedString is returned by NextCommand when a
-	// dollar-single-quoted string is not terminated.
+	// ErrUnterminatedDollarSingleQuotedString is returned by NextCommand
+	// when a dollar-single-quoted string is not terminated.
 	ErrUnterminatedDollarSingleQuotedString = errors.New("shcmd: unterminated dollar-single-quoted string")
-	// ErrBadSubstitution is returned by NextCommand when a bad
-	// substitution is detected.
+	// ErrBadSubstitution is returned by NextCommand when a bad substitution
+	// is detected.
 	ErrBadSubstitution = errors.New("shcmd: bad substitution")
 )
 
-// NextCommand parses and returns the next command as a slice of
-// arguments, with each argument fully unquoted and unescaped.
-// Blank lines and comments are skipped. The second return value
-// reports whether a command was found; it is false when the text is
-// exhausted.
+// NextCommand parses and returns the next command as a slice of arguments, with
+// each argument fully unquoted and unescaped. Blank lines and comments are
+// skipped. The second return value reports whether a command was found; it is
+// false when the text is exhausted.
 //
 // If a command was found, the slice contains at least one argument.
 func (s *Scanner) NextCommand() ([]string, bool, error) {
@@ -530,8 +529,8 @@ func (s *Scanner) getEnvVar(name []byte) string {
 	return os.Getenv(b2s(name))
 }
 
-// LineCount returns the number of lines processed so far. A final
-// line without a trailing newline is also counted.
+// LineCount returns the number of lines processed so far. A final line without
+// a trailing newline is also counted.
 func (s *Scanner) LineCount() int {
 	lineCount := s.cursor.LineCount
 	if s.cursor.IsAtEnd() {
