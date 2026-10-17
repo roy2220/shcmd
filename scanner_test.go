@@ -190,7 +190,7 @@ ls -alh /`,
 		},
 		{
 			Lineno:  lineno(),
-			Text:    "echo \"\\$FOO\"",
+			Text:    `echo "\$FOO"`,
 			Command: []string{"echo", "$FOO"},
 		},
 		{
@@ -265,18 +265,18 @@ ls -alh /`,
 		},
 		{
 			Lineno:  lineno(),
-			Text:    `echo $'\xy' $'\x4' $'\x4F' $'\x4FD'`,
-			Command: []string{"echo", "\\xy", "\x04", "O", "OD"},
+			Text:    `echo $'\x' $'\xy' $'\x4' $'\x4f' $'\x4FD'`,
+			Command: []string{"echo", `\x`, `\xy`, "\x04", "O", "OD"},
 		},
 		{
 			Lineno:  lineno(),
-			Text:    `echo $'\uv' $'\u4' $'\u4F' $'\u04F' $'\u004FD'`,
-			Command: []string{"echo", "\\uv", "\x04", "O", "O", "OD"},
+			Text:    `echo $'\u' $'\uv' $'\u4' $'\u4f' $'\u04F' $'\u004fD'`,
+			Command: []string{"echo", `\u`, `\uv`, "\x04", "O", "O", "OD"},
 		},
 		{
 			Lineno:  lineno(),
-			Text:    `echo $'\UV' $'\U4' $'\U4F' $'\U004F' $'\U0000004FD'`,
-			Command: []string{"echo", "\\UV", "\x04", "O", "O", "OD"},
+			Text:    `echo $'\U' $'\UV' $'\U4' $'\U4f' $'\U004F' $'\U0000004fD'`,
+			Command: []string{"echo", `\U`, `\UV`, "\x04", "O", "O", "OD"},
 		},
 		{
 			// \uD800 is a surrogate, and \U110000 is beyond the Unicode range.
@@ -291,7 +291,7 @@ ls -alh /`,
 			// not decoded here.
 			Lineno:  lineno(),
 			Text:    `echo $'\q\cA'`,
-			Command: []string{"echo", "\\q\\cA"},
+			Command: []string{"echo", `\q\cA`},
 		},
 		{
 			Lineno:  lineno(),
@@ -357,16 +357,6 @@ b'`,
 			Lineno:  lineno(),
 			Text:    "echo $'a\r\nb'",
 			Command: []string{"echo", "a\nb"},
-		},
-		{
-			Lineno:  lineno(),
-			Text:    `echo $'\x4A'`,
-			Command: []string{"echo", "J"},
-		},
-		{
-			Lineno:  lineno(),
-			Text:    `echo $'\x'`,
-			Command: []string{"echo", `\x`},
 		},
 		{
 			// A bare $ in front of a CRLF line ending stays literal.
