@@ -143,7 +143,7 @@ Results on Go 1.27.1, linux/arm64:
 Run the benchmarks with:
 
 ```sh
-go test -run '^$' -bench BenchmarkSplit -benchmem
+(cd ./benchmark && go test -run '^$' -bench BenchmarkSplit -benchmem -count 5)
 ```
 
 ## Limitations
