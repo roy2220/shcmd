@@ -48,7 +48,10 @@ const (
 // SetText sets the text for the Scanner to parse. It resets the line count.
 // Internal buffers are kept for reuse. The text will not be modified by the
 // Scanner.
-func (s *Scanner) SetText(text []byte) {
+func (s *Scanner) SetText(text string) { s.SetTextBytes(s2b(text)) }
+
+// SetTextBytes is like SetText but takes a []byte instead of a string.
+func (s *Scanner) SetTextBytes(text []byte) {
 	s.cursor = cursor{Text: text}
 	if n := len(text); n >= 1 && text[n-1] != '\n' {
 		s.additionalLineCount = 1

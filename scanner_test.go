@@ -373,7 +373,7 @@ b'`,
 	}
 	for _, tc := range testCases {
 		t.Run(fmt.Sprintf("line_%d", tc.Lineno), func(t *testing.T) {
-			scanner.SetText([]byte(tc.Text))
+			scanner.SetText(tc.Text)
 			command, found, err := scanner.NextCommand()
 			require.NoError(t, err)
 			require.True(t, found)
@@ -579,7 +579,7 @@ lines`,
 	}
 	for _, tc := range testCases {
 		t.Run(fmt.Sprintf("line_%d", tc.Lineno), func(t *testing.T) {
-			scanner.SetText([]byte(tc.Text))
+			scanner.SetText(tc.Text)
 			command, found, err := scanner.NextCommand()
 			require.Empty(t, command)
 			require.False(t, found)
@@ -595,9 +595,9 @@ lines`,
 func TestSkipLines(t *testing.T) {
 	t.Run("skip_none", func(t *testing.T) {
 		scanner := Scanner{}
-		scanner.SetText([]byte(`ls -alh /
+		scanner.SetText(`ls -alh /
 ps aux
-`))
+`)
 		scanner.SkipLines(0)
 		command, found, err := scanner.NextCommand()
 		require.NoError(t, err)
@@ -608,10 +608,10 @@ ps aux
 
 	t.Run("skip_to_middle", func(t *testing.T) {
 		scanner := Scanner{}
-		scanner.SetText([]byte(`ls -alh /
+		scanner.SetText(`ls -alh /
 ps aux
 whoami
-`))
+`)
 		scanner.SkipLines(1)
 		command, found, err := scanner.NextCommand()
 		require.NoError(t, err)
@@ -622,9 +622,9 @@ whoami
 
 	t.Run("skip_to_end", func(t *testing.T) {
 		scanner := Scanner{}
-		scanner.SetText([]byte(`ls -alh /
+		scanner.SetText(`ls -alh /
 ps aux
-`))
+`)
 		scanner.SkipLines(2)
 		command, found, err := scanner.NextCommand()
 		require.NoError(t, err)
@@ -635,9 +635,9 @@ ps aux
 
 	t.Run("skip_past_end", func(t *testing.T) {
 		scanner := Scanner{}
-		scanner.SetText([]byte(`ls -alh /
+		scanner.SetText(`ls -alh /
 ps aux
-`))
+`)
 		scanner.SkipLines(5)
 		command, found, err := scanner.NextCommand()
 		require.NoError(t, err)
@@ -648,9 +648,9 @@ ps aux
 
 	t.Run("last_line_without_newline", func(t *testing.T) {
 		scanner := Scanner{}
-		scanner.SetText([]byte(`ls -alh /
+		scanner.SetText(`ls -alh /
 ps aux
-whoami`))
+whoami`)
 		scanner.SkipLines(2)
 		command, found, err := scanner.NextCommand()
 		require.NoError(t, err)
@@ -672,7 +672,7 @@ func TestExpandEnvVars(t *testing.T) {
 				},
 			},
 		}
-		scanner.SetText([]byte(`echo $SHCMD_TEST_FOO ${SHCMD_TEST_FOO} "$SHCMD_TEST_FOO"`))
+		scanner.SetText(`echo $SHCMD_TEST_FOO ${SHCMD_TEST_FOO} "$SHCMD_TEST_FOO"`)
 		command, found, err := scanner.NextCommand()
 		require.NoError(t, err)
 		require.True(t, found)
@@ -687,7 +687,7 @@ func TestExpandEnvVars(t *testing.T) {
 				ExpandEnvVars: true,
 			},
 		}
-		scanner.SetText([]byte(`echo $SHCMD_TEST_FOO "${SHCMD_TEST_FOO}"`))
+		scanner.SetText(`echo $SHCMD_TEST_FOO "${SHCMD_TEST_FOO}"`)
 		command, found, err := scanner.NextCommand()
 		require.NoError(t, err)
 		require.True(t, found)
@@ -706,7 +706,7 @@ func TestExpandEnvVars(t *testing.T) {
 				},
 			},
 		}
-		scanner.SetText([]byte(`echo $FOO ${FOOBAR} "$FOO"`))
+		scanner.SetText(`echo $FOO ${FOOBAR} "$FOO"`)
 		command, found, err := scanner.NextCommand()
 		require.NoError(t, err)
 		require.True(t, found)

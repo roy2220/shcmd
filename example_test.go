@@ -29,8 +29,13 @@ func Example_single_command() {
 func Example_multiple_commands() {
 	os.Setenv("FOO_BAR", "foo bar")
 
-	text := []byte(`
+	scanner := shcmd.Scanner{
+		Options: shcmd.Options{
+			ExpandEnvVars: true,
+		},
+	}
 
+	scanner.SetText(`
 		ls -alh /
 
 		sed -i \
@@ -43,16 +48,7 @@ func Example_multiple_commands() {
 		echo ${FOO_BAR} "${FOO_BAR}"
 
 		echo $'have fun\t\U0001F920'
-
 	`)
-
-	scanner := shcmd.Scanner{
-		Options: shcmd.Options{
-			ExpandEnvVars: true,
-		},
-	}
-
-	scanner.SetText(text)
 
 	for {
 		command, found, err := scanner.NextCommand()
@@ -73,5 +69,5 @@ func Example_multiple_commands() {
 	// ["ps" "aux"]
 	// ["echo" "foo" "bar" "foo bar"]
 	// ["echo" "have fun\t🤠"]
-	// processed line count: 16
+	// processed line count: 14
 }
