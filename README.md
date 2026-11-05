@@ -12,7 +12,7 @@ So far `shcmd` is the **fastest** implementation among similar shell-word
 splitting packages; see [Performance](#performance) for benchmark results.
 
 > [!NOTE]
-> Except for the documentation, every line of code is human-crafted. **No AI slop included**.
+> The source code is handcrafted by a human. AI only assisted with docs and tests. No AI slop.
 
 ## Usage
 
